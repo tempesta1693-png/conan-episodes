@@ -55,6 +55,13 @@
       text-align: left;
       white-space: nowrap;
     }
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    th.sortable:hover { background: #2d2d4e; }
+    th.sort-asc::after  { content: ' ▲'; font-size: 0.75rem; }
+    th.sort-desc::after { content: ' ▼'; font-size: 0.75rem; }
     td {
       padding: 8px 12px;
       border-bottom: 1px solid #eee;
@@ -106,13 +113,13 @@
   <table>
     <thead>
       <tr>
-        <th>#</th>
+        <th class="sortable" data-key="num">#</th>
         <th>シーズン</th>
         <th>タイトル</th>
         <th>原作/オリジナル</th>
         <th>黒の組織</th>
-        <th>ストーリー関連</th>
-        <th>おすすめ度</th>
+        <th class="sortable" data-key="story">ストーリー関連</th>
+        <th class="sortable" data-key="rec">おすすめ度</th>
         <th>注記</th>
       </tr>
     </thead>
@@ -123,6 +130,8 @@
 
 <script>
 let allEpisodes = [];
+let sortKey = 'num';
+let sortDir = 'asc';
 
 async function loadCSV() {
   const res = await fetch('conan_episodes.csv');
@@ -190,6 +199,20 @@ function render() {
     return true;
   });
 
+  filtered.sort((a, b) => {
+    const va = Number(a[sortKey]) || 0;
+    const vb = Number(b[sortKey]) || 0;
+    return sortDir === 'asc' ? va - vb : vb - va;
+  });
+
+  // update header indicators
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.key === sortKey) {
+      th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
@@ -216,6 +239,19 @@ document.getElementById('search').addEventListener('input', render);
 document.getElementById('filterSeason').addEventListener('change', render);
 document.getElementById('filterType').addEventListener('change', render);
 document.getElementById('filterOrg').addEventListener('change', render);
+
+document.querySelectorAll('th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (sortKey === key) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key;
+      sortDir = 'asc';
+    }
+    render();
+  });
+});
 
 loadCSV();
 </script>
