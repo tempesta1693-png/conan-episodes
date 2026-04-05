@@ -237,7 +237,6 @@ function render() {
   const search = document.getElementById('search').value.trim().toLowerCase();
   const season = document.getElementById('filterSeason').value;
   const type   = document.getElementById('filterType').value;
-  const org    = document.getElementById('filterOrg').value;
 
   // 条件に合うエピソードだけ抽出
   const filtered = allEpisodes.filter(e => {
