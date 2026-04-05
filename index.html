@@ -69,9 +69,11 @@
       user-select: none; /* クリック時にテキスト選択されないようにする */
     }
     th.sortable:hover { background: #2d2d4e; }
-    /* ソート中の列に ▲/▼ を表示（CSSの疑似要素で追加） */
-    th.sort-asc::after  { content: ' ▲'; font-size: 0.75rem; }
-    th.sort-desc::after { content: ' ▼'; font-size: 0.75rem; }
+    /* ソート可能な列には常に ▲▼ を表示 */
+    th.sortable::after       { content: ' ▲▼'; font-size: 0.7rem; opacity: 0.4; }
+    /* ソート中の列は ▲ または ▼ を強調表示 */
+    th.sort-asc::after  { content: ' ▲'; font-size: 0.75rem; opacity: 1; }
+    th.sort-desc::after { content: ' ▼'; font-size: 0.75rem; opacity: 1; }
 
     /* テーブルのデータセル */
     td {
