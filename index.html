@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>名探偵コナン アニメエピソード一覧</title>
   <style>
+    /* ===== リセット & ベーススタイル ===== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #f5f5f5; color: #333; }
 
+    /* ===== ページ上部のタイトルバー ===== */
     header {
       background: #1a1a2e;
       color: #fff;
@@ -15,12 +17,13 @@
     }
     header h1 { font-size: 1.4rem; }
 
+    /* ===== 検索・フィルターエリア ===== */
     .controls {
       background: #fff;
       padding: 16px 24px;
       border-bottom: 1px solid #ddd;
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: wrap;   /* 画面幅が狭い場合に折り返す */
       gap: 12px;
       align-items: center;
     }
@@ -31,6 +34,8 @@
       font-size: 0.9rem;
     }
     .controls input[type="text"] { width: 280px; }
+
+    /* 件数表示（右端に寄せる） */
     .count {
       margin-left: auto;
       font-size: 0.85rem;
@@ -38,6 +43,7 @@
       white-space: nowrap;
     }
 
+    /* ===== テーブルエリア（横スクロール対応） ===== */
     .table-wrap {
       overflow-x: auto;
       padding: 16px 24px;
@@ -48,6 +54,8 @@
       background: #fff;
       font-size: 0.9rem;
     }
+
+    /* テーブルヘッダー */
     th {
       background: #1a1a2e;
       color: #fff;
@@ -55,18 +63,24 @@
       text-align: left;
       white-space: nowrap;
     }
+    /* ソート可能な列のヘッダー */
     th.sortable {
       cursor: pointer;
-      user-select: none;
+      user-select: none; /* クリック時にテキスト選択されないようにする */
     }
     th.sortable:hover { background: #2d2d4e; }
+    /* ソート中の列に ▲/▼ を表示（CSSの疑似要素で追加） */
     th.sort-asc::after  { content: ' ▲'; font-size: 0.75rem; }
     th.sort-desc::after { content: ' ▼'; font-size: 0.75rem; }
+
+    /* テーブルのデータセル */
     td {
       padding: 8px 12px;
       border-bottom: 1px solid #eee;
     }
-    tr:hover td { background: #f0f4ff; }
+    tr:hover td { background: #f0f4ff; } /* 行ホバー時に背景色変更 */
+
+    /* ===== バッジ（ラベル表示） ===== */
     .badge {
       display: inline-block;
       padding: 2px 8px;
@@ -74,14 +88,18 @@
       font-size: 0.8rem;
       white-space: nowrap;
     }
-    .badge-manga  { background: #dbeafe; color: #1d4ed8; }
-    .badge-anime  { background: #fef9c3; color: #854d0e; }
-    .badge-org    { background: #fee2e2; color: #991b1b; }
+    .badge-manga  { background: #dbeafe; color: #1d4ed8; } /* 原作：青系 */
+    .badge-anime  { background: #fef9c3; color: #854d0e; } /* アニメオリジナル：黄系 */
+    .badge-org    { background: #fee2e2; color: #991b1b; } /* 黒の組織関連：赤系 */
+
+    /* 検索結果が0件のときのメッセージ */
     .no-results {
       text-align: center;
       padding: 40px;
       color: #999;
     }
+
+    /* ★評価の色 */
     .stars { color: #f59e0b; letter-spacing: -1px; }
   </style>
 </head>
@@ -91,28 +109,40 @@
   <h1>名探偵コナン アニメエピソード一覧</h1>
 </header>
 
+<!-- 検索・フィルターコントロール -->
 <div class="controls">
+  <!-- タイトルのテキスト検索 -->
   <input type="text" id="search" placeholder="タイトルで検索...">
+
+  <!-- シーズン絞り込み（選択肢はJSで動的に生成） -->
   <select id="filterSeason">
     <option value="">シーズン（すべて）</option>
   </select>
+
+  <!-- 原作 / アニメオリジナル 絞り込み -->
   <select id="filterType">
     <option value="">原作/オリジナル（すべて）</option>
     <option value="原作">原作</option>
     <option value="アニメオリジナル">アニメオリジナル</option>
   </select>
+
+  <!-- 黒の組織関連 絞り込み -->
   <select id="filterOrg">
     <option value="">黒の組織関連（すべて）</option>
     <option value="○">○ あり</option>
     <option value="×">× なし</option>
   </select>
+
+  <!-- フィルター後の件数表示 -->
   <span class="count" id="count"></span>
 </div>
 
+<!-- エピソード一覧テーブル -->
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
+        <!-- data-key属性でJSのソート対象フィールド名を指定 -->
         <th class="sortable" data-key="num">#</th>
         <th>シーズン</th>
         <th>タイトル</th>
@@ -123,35 +153,45 @@
         <th>注記</th>
       </tr>
     </thead>
+    <!-- 行はJSで動的に生成 -->
     <tbody id="tbody"></tbody>
   </table>
+  <!-- 該当エピソードがないときに表示 -->
   <div class="no-results" id="noResults" style="display:none">該当するエピソードがありません</div>
 </div>
 
 <script>
+// 全エピソードデータを保持する配列
 let allEpisodes = [];
+
+// 現在のソート設定（初期値：エピソード番号の昇順）
 let sortKey = 'num';
 let sortDir = 'asc';
 
+// ========================================
+// CSVファイルを読み込み、データを初期化する
+// ========================================
 async function loadCSV() {
   const res = await fetch('conan_episodes.csv');
   const text = await res.text();
   const lines = text.trim().split('\n');
+
+  // 1行目はヘッダーなのでスキップ（slice(1)）
   allEpisodes = lines.slice(1).map(line => {
     const cols = parseCSVLine(line);
     return {
-      num:    cols[0] || '',
-      season: cols[1] || '',
-      title:  cols[2] || '',
-      type:   cols[3] || '',
-      org:    cols[4] || '',
-      story:  cols[5] || '',
-      rec:    cols[6] || '',
-      note:   cols[7] || '',
+      num:    cols[0] || '', // エピソード番号
+      season: cols[1] || '', // シーズン番号
+      title:  cols[2] || '', // タイトル
+      type:   cols[3] || '', // 原作 / アニメオリジナル
+      org:    cols[4] || '', // 黒の組織関連（○/×）
+      story:  cols[5] || '', // ストーリー関連度（数値）
+      rec:    cols[6] || '', // おすすめ度（数値）
+      note:   cols[7] || '', // 注記
     };
   });
 
-  // populate season filter
+  // シーズンフィルターの選択肢を動的に生成
   const seasons = [...new Set(allEpisodes.map(e => e.season))]
     .filter(Boolean)
     .sort((a, b) => Number(a) - Number(b));
@@ -166,31 +206,45 @@ async function loadCSV() {
   render();
 }
 
+// ========================================
+// CSVの1行をカラム配列に変換する
+// ダブルクォートで囲まれたフィールド内のカンマを正しく処理する
+// ========================================
 function parseCSVLine(line) {
   const result = [];
   let cur = '', inQuote = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
-    if (c === '"') { inQuote = !inQuote; }
-    else if (c === ',' && !inQuote) { result.push(cur); cur = ''; }
+    if (c === '"') { inQuote = !inQuote; }          // クォートの開始/終了
+    else if (c === ',' && !inQuote) { result.push(cur); cur = ''; } // フィールド区切り
     else { cur += c; }
   }
-  result.push(cur);
+  result.push(cur); // 最後のフィールドを追加
   return result;
 }
 
+// ========================================
+// 数値を★の数に変換して返す（最大5個）
+// 値が0または空の場合は空文字を返す
+// ========================================
 function stars(n) {
   const val = Number(n);
   if (!val) return '';
   return '<span class="stars">' + '★'.repeat(Math.min(val, 5)) + '</span>';
 }
 
+// ========================================
+// テーブルを再描画する（フィルター・ソート適用）
+// 検索・フィルター変更・ソート変更のたびに呼ばれる
+// ========================================
 function render() {
+  // 現在の検索・フィルター条件を取得
   const search = document.getElementById('search').value.trim().toLowerCase();
   const season = document.getElementById('filterSeason').value;
   const type   = document.getElementById('filterType').value;
   const org    = document.getElementById('filterOrg').value;
 
+  // 条件に合うエピソードだけ抽出
   const filtered = allEpisodes.filter(e => {
     if (search && !e.title.toLowerCase().includes(search)) return false;
     if (season && e.season !== season) return false;
@@ -199,13 +253,14 @@ function render() {
     return true;
   });
 
+  // 指定されたキーで数値ソート（空値は0として扱う）
   filtered.sort((a, b) => {
     const va = Number(a[sortKey]) || 0;
     const vb = Number(b[sortKey]) || 0;
     return sortDir === 'asc' ? va - vb : vb - va;
   });
 
-  // update header indicators
+  // ソート中の列ヘッダーに ▲/▼ を付ける
   document.querySelectorAll('th.sortable').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
     if (th.dataset.key === sortKey) {
@@ -213,6 +268,7 @@ function render() {
     }
   });
 
+  // テーブルの行を再生成
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
@@ -231,15 +287,24 @@ function render() {
     tbody.appendChild(tr);
   });
 
+  // 件数表示を更新
   document.getElementById('count').textContent = `${filtered.length} / ${allEpisodes.length} 件`;
   document.getElementById('noResults').style.display = filtered.length === 0 ? 'block' : 'none';
 }
 
+// ========================================
+// イベントリスナーの登録
+// ========================================
+
+// 検索・フィルター変更時に再描画
 document.getElementById('search').addEventListener('input', render);
 document.getElementById('filterSeason').addEventListener('change', render);
 document.getElementById('filterType').addEventListener('change', render);
 document.getElementById('filterOrg').addEventListener('change', render);
 
+// ソート可能な列ヘッダーのクリックでソートを切り替える
+// 同じ列を再クリック → 昇順/降順を反転
+// 別の列をクリック  → その列の昇順でソート
 document.querySelectorAll('th.sortable').forEach(th => {
   th.addEventListener('click', () => {
     const key = th.dataset.key;
@@ -253,6 +318,7 @@ document.querySelectorAll('th.sortable').forEach(th => {
   });
 });
 
+// ページ読み込み時にCSVを取得してテーブルを表示
 loadCSV();
 </script>
 </body>
